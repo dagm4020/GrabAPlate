@@ -1,43 +1,90 @@
 import 'package:flutter/material.dart';
+import 'database_helper.dart';
 
-class Settings extends StatelessWidget {
-  final bool isDarkMode;
+class Settings extends StatefulWidget {
   final bool animationsOff;
-  final ValueChanged<bool> onDarkModeToggle;
   final ValueChanged<bool> onAnimationsToggle;
 
   Settings({
-    required this.isDarkMode,
     required this.animationsOff,
-    required this.onDarkModeToggle,
     required this.onAnimationsToggle,
   });
+
+  @override
+  _SettingsState createState() => _SettingsState();
+}
+
+class _SettingsState extends State<Settings> {
+  bool _darkModeEnabled = false;
+  bool _animationsOff = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final settings = await DatabaseHelper().getSettings();
+    setState(() {
+      _darkModeEnabled = settings['darkMode'] ?? false;
+      _animationsOff = settings['animationsOff'] ?? false;
+    });
+  }
+
+  Future<void> _saveSettings() async {
+    await DatabaseHelper().updateSettings(
+      darkMode: _darkModeEnabled,
+      animationsOff: _animationsOff,
+    );
+  }
+
+  void _toggleDarkMode(bool value) {
+    setState(() {
+      _darkModeEnabled = value;
+    });
+  }
+
+  void _toggleAnimations(bool value) {
+    setState(() {
+      _animationsOff = value;
+      widget.onAnimationsToggle(value);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Settings"),
-        backgroundColor: Colors.white,
-        iconTheme: IconThemeData(color: Colors.black),
+        title: Text(
+          "Settings",
+          style:
+              TextStyle(color: _darkModeEnabled ? Colors.white : Colors.black),
+        ),
+        backgroundColor: _darkModeEnabled ? Colors.black : Colors.white,
+        iconTheme: IconThemeData(
+            color: _darkModeEnabled ? Colors.white : Colors.black),
       ),
       body: Container(
-        color: Colors.white,
+        color: _darkModeEnabled ? Colors.black : Colors.white,
         child: ListView(
           children: [
             ListTile(
               title: Text(
                 'Preferences',
-                style: TextStyle(fontSize: 18), // Removed bold
+                style: TextStyle(
+                    fontSize: 18,
+                    color: _darkModeEnabled ? Colors.white : Colors.black),
               ),
-              trailing: Icon(Icons.arrow_forward_ios), // Added arrow to the right
+              trailing: Icon(Icons.arrow_forward_ios,
+                  color: _darkModeEnabled ? Colors.white : Colors.black),
               onTap: () {
                 Navigator.of(context).push(MaterialPageRoute(
                   builder: (context) => PreferencesScreen(
-                    isDarkMode: isDarkMode,
-                    animationsOff: animationsOff,
-                    onDarkModeToggle: onDarkModeToggle,
-                    onAnimationsToggle: onAnimationsToggle,
+                    darkMode: _darkModeEnabled,
+                    animationsOff: _animationsOff,
+                    onDarkModeToggle: _toggleDarkMode,
+                    onAnimationsToggle: _toggleAnimations,
                   ),
                 ));
               },
@@ -50,13 +97,13 @@ class Settings extends StatelessWidget {
 }
 
 class PreferencesScreen extends StatefulWidget {
-  final bool isDarkMode;
+  final bool darkMode;
   final bool animationsOff;
   final ValueChanged<bool> onDarkModeToggle;
   final ValueChanged<bool> onAnimationsToggle;
 
   PreferencesScreen({
-    required this.isDarkMode,
+    required this.darkMode,
     required this.animationsOff,
     required this.onDarkModeToggle,
     required this.onAnimationsToggle,
@@ -67,25 +114,23 @@ class PreferencesScreen extends StatefulWidget {
 }
 
 class _PreferencesScreenState extends State<PreferencesScreen> {
-  late bool _isDarkMode;
+  late bool _darkModeEnabled;
   late bool _animationsOff;
 
   @override
   void initState() {
     super.initState();
-    _isDarkMode = widget.isDarkMode;
+    _darkModeEnabled = widget.darkMode;
     _animationsOff = widget.animationsOff;
   }
 
-  // Toggle Dark Mode
   void _toggleDarkMode(bool value) {
     setState(() {
-      _isDarkMode = value;
+      _darkModeEnabled = value;
       widget.onDarkModeToggle(value);
     });
   }
 
-  // Toggle Animations
   void _toggleAnimations(bool value) {
     setState(() {
       _animationsOff = value;
@@ -97,31 +142,44 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Preferences"),
-        backgroundColor: Colors.white,
-        iconTheme: IconThemeData(color: Colors.black),
+        title: Text(
+          "Preferences",
+          style:
+              TextStyle(color: _darkModeEnabled ? Colors.white : Colors.black),
+        ),
+        backgroundColor: _darkModeEnabled ? Colors.black : Colors.white,
+        iconTheme: IconThemeData(
+            color: _darkModeEnabled ? Colors.white : Colors.black),
       ),
       body: Container(
-        color: Colors.white,
+        color: _darkModeEnabled ? Colors.black : Colors.white,
         child: Column(
           children: [
             ListTile(
-              title: Text('Dark Mode'),
+              title: Text('Dark Mode',
+                  style: TextStyle(
+                      color: _darkModeEnabled ? Colors.white : Colors.black)),
               trailing: Switch(
-                value: _isDarkMode,
+                value: _darkModeEnabled,
                 onChanged: _toggleDarkMode,
               ),
             ),
             ListTile(
-              title: Text('Turn Off Animations'),
+              title: Text('Turn Off Animations',
+                  style: TextStyle(
+                      color: _darkModeEnabled ? Colors.white : Colors.black)),
               trailing: Switch(
                 value: _animationsOff,
                 onChanged: _toggleAnimations,
               ),
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Go back to settings
+              onPressed: () async {
+                await DatabaseHelper().updateSettings(
+                  darkMode: _darkModeEnabled,
+                  animationsOff: _animationsOff,
+                );
+                Navigator.of(context).pop();
               },
               child: Text("Save Preferences"),
             ),
