@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Meal Planner',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: HomeScreen(), // This should point to HomeScreen
+      home: HomeScreen(), // this should point to homescreen
       debugShowCheckedModeBanner: false,
     );
   }
