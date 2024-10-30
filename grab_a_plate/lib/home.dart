@@ -200,8 +200,13 @@ class SuggestedMealsScreen extends StatelessWidget {
 class Home extends StatefulWidget {
   final VoidCallback onNavigateToFavorites;
   final bool darkModeEnabled;
+  final bool isLoggedIn; 
 
-  Home({required this.onNavigateToFavorites, required this.darkModeEnabled});
+  Home({
+    required this.onNavigateToFavorites,
+    required this.darkModeEnabled,
+    required this.isLoggedIn, 
+  });
 
   @override
   _HomeState createState() => _HomeState();
@@ -696,6 +701,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _animationsOff = false;
   bool _darkModeEnabled = false;
   final List<Widget> _screens = [];
+  bool _isLoggedIn = false;
 
   @override
   void initState() {
@@ -703,15 +709,17 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadDarkModePreference();
   }
 
-  Future<void> _loadDarkModePreference() async {
+Future<void> _loadDarkModePreference() async {
     final settings = await DatabaseHelper().getSettings();
     setState(() {
       _darkModeEnabled = settings['darkMode'] ?? false;
       _animationsOff = settings['animationsOff'] ?? false;
+      _isLoggedIn = settings['isLoggedIn'] ?? false; 
       _screens.addAll([
         Home(
           onNavigateToFavorites: _navigateToFavorites,
           darkModeEnabled: _darkModeEnabled,
+          isLoggedIn: _isLoggedIn,
         ),
         MealPlan(),
         GroceryList(),
@@ -734,24 +742,30 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _goToSettings() {
-    Navigator.of(context)
-        .push(MaterialPageRoute(
-          builder: (context) => Settings(
-            animationsOff: _animationsOff,
-            onAnimationsToggle: (value) {
-              setState(() => _animationsOff = value);
-            },
-          ),
-        ))
-        .then((_) => _loadDarkModePreference());
-  }
+void _goToSettings() async {
+
+  await Navigator.of(context)
+      .push(MaterialPageRoute(
+        builder: (context) => Settings(
+          animationsOff: _animationsOff,
+          onAnimationsToggle: (value) {
+            setState(() => _animationsOff = value);
+          },
+          isLoggedIn: _isLoggedIn, 
+          onLoginStatusChanged: (value) {
+            setState(() => _isLoggedIn = value);
+          },
+        ),
+      ))
+      .then((_) => _loadDarkModePreference());
+}
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _darkModeEnabled ? Colors.black : Colors.white,
-      appBar: PreferredSize(
+            appBar: PreferredSize(
         preferredSize: Size.fromHeight(130.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -777,12 +791,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     SizedBox(width: 8),
                     Text(
-                      "John Doe",
+                      _isLoggedIn ? "John Doe" : "Sign In",
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 20,
                         fontWeight: FontWeight.w400,
-                        color: _darkModeEnabled ? Colors.white : Colors.black,
+                        color:
+                            _darkModeEnabled ? Colors.white : Colors.black,
                       ),
                     ),
                   ],

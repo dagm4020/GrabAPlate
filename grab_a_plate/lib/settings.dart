@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
-
+import 'sign_in.dart'; 
 class Settings extends StatefulWidget {
   final bool animationsOff;
   final ValueChanged<bool> onAnimationsToggle;
-
+  final bool isLoggedIn;
+  final ValueChanged<bool> onLoginStatusChanged; 
   Settings({
     required this.animationsOff,
     required this.onAnimationsToggle,
+    required this.isLoggedIn,
+    required this.onLoginStatusChanged,
   });
 
   @override
@@ -17,6 +20,7 @@ class Settings extends StatefulWidget {
 class _SettingsState extends State<Settings> {
   bool _darkModeEnabled = false;
   bool _animationsOff = false;
+  bool _isLoggedIn = false;
 
   @override
   void initState() {
@@ -29,6 +33,7 @@ class _SettingsState extends State<Settings> {
     setState(() {
       _darkModeEnabled = settings['darkMode'] ?? false;
       _animationsOff = settings['animationsOff'] ?? false;
+      _isLoggedIn = settings['isLoggedIn'] ?? false;
     });
   }
 
@@ -36,6 +41,7 @@ class _SettingsState extends State<Settings> {
     await DatabaseHelper().updateSettings(
       darkMode: _darkModeEnabled,
       animationsOff: _animationsOff,
+      isLoggedIn: _isLoggedIn,
     );
   }
 
@@ -52,23 +58,53 @@ class _SettingsState extends State<Settings> {
     });
   }
 
+  void _updateLoginStatus(bool value) {
+    setState(() {
+      _isLoggedIn = value;
+    });
+    widget.onLoginStatusChanged(value);
+    _saveSettings();   }
+
+  void _navigateToSignIn() async {
+        await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => SignInScreen(
+          onSignedIn: () {
+            _updateLoginStatus(true);
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(
           "Settings",
-          style:
-              TextStyle(color: _darkModeEnabled ? Colors.white : Colors.black),
+          style: TextStyle(color: _darkModeEnabled ? Colors.white : Colors.black),
         ),
         backgroundColor: _darkModeEnabled ? Colors.black : Colors.white,
-        iconTheme: IconThemeData(
-            color: _darkModeEnabled ? Colors.white : Colors.black),
+        iconTheme:
+            IconThemeData(color: _darkModeEnabled ? Colors.white : Colors.black),
       ),
       body: Container(
         color: _darkModeEnabled ? Colors.black : Colors.white,
         child: ListView(
           children: [
+                        if (!_isLoggedIn)
+              ListTile(
+                title: Text(
+                  'Sign In',
+                  style: TextStyle(
+                      fontSize: 18,
+                      color: _darkModeEnabled ? Colors.white : Colors.black),
+                ),
+                trailing: Icon(Icons.login,
+                    color: _darkModeEnabled ? Colors.white : Colors.black),
+                onTap: _navigateToSignIn,
+              ),
             ListTile(
               title: Text(
                 'Preferences',
@@ -138,18 +174,25 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
     });
   }
 
+  Future<void> _savePreferences() async {
+    await DatabaseHelper().updateSettings(
+      darkMode: _darkModeEnabled,
+      animationsOff: _animationsOff,
+    );
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(
           "Preferences",
-          style:
-              TextStyle(color: _darkModeEnabled ? Colors.white : Colors.black),
+          style: TextStyle(color: _darkModeEnabled ? Colors.white : Colors.black),
         ),
         backgroundColor: _darkModeEnabled ? Colors.black : Colors.white,
-        iconTheme: IconThemeData(
-            color: _darkModeEnabled ? Colors.white : Colors.black),
+        iconTheme:
+            IconThemeData(color: _darkModeEnabled ? Colors.white : Colors.black),
       ),
       body: Container(
         color: _darkModeEnabled ? Colors.black : Colors.white,
@@ -173,14 +216,9 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                 onChanged: _toggleAnimations,
               ),
             ),
+            SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () async {
-                await DatabaseHelper().updateSettings(
-                  darkMode: _darkModeEnabled,
-                  animationsOff: _animationsOff,
-                );
-                Navigator.of(context).pop();
-              },
+              onPressed: _savePreferences,
               child: Text("Save Preferences"),
             ),
           ],
