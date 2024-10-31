@@ -3,15 +3,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'models/meal.dart';
-
 import 'meal_detail_screen.dart';
-
 import 'meal_plan.dart';
 import 'grocery_list.dart';
 import 'favorites.dart';
 import 'settings.dart';
 import 'database_helper.dart';
-
+import 'sign_in.dart';
+import 'suggested_meals.dart'; 
 class SlideTransitionPageRoute extends PageRouteBuilder {
   final Widget page;
   SlideTransitionPageRoute({required this.page})
@@ -34,178 +33,21 @@ class SlideTransitionPageRoute extends PageRouteBuilder {
         );
 }
 
-class SuggestedMealsScreen extends StatelessWidget {
-  final bool darkModeEnabled;
-  SuggestedMealsScreen({required this.darkModeEnabled});
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = darkModeEnabled ? Colors.white : Colors.black;
-
-    return Scaffold(
-      backgroundColor: darkModeEnabled ? Colors.black : Colors.white,
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(60.0),
-        child: Column(
-          children: [
-            AppBar(
-              title: Text(
-                'Suggested Meals',
-                style: TextStyle(fontSize: 20, color: textColor),
-              ),
-              backgroundColor: darkModeEnabled ? Colors.black : Colors.white,
-              iconTheme: IconThemeData(color: textColor),
-            ),
-            Container(
-              margin: EdgeInsets.symmetric(horizontal: 50.0),
-              height: 2.0,
-              color: textColor.withOpacity(0.5),
-            ),
-          ],
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: FutureBuilder<List<Meal>>(
-          future: _fetchSixRandomMeals(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                      darkModeEnabled ? Colors.white : Colors.black),
-                ),
-              );
-            } else if (snapshot.hasError) {
-              return Center(
-                child: Text(
-                  'Error fetching meals',
-                  style: TextStyle(color: Colors.red, fontSize: 16),
-                ),
-              );
-            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return Center(
-                child: Text(
-                  'No suggested meals found.',
-                  style: TextStyle(fontSize: 16, color: textColor),
-                ),
-              );
-            } else {
-              List<Meal> suggestedMeals = snapshot.data!;
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 20.0,
-                  mainAxisSpacing: 20.0,
-                  childAspectRatio: 0.75,
-                ),
-                itemCount: suggestedMeals.length,
-                itemBuilder: (context, index) {
-                  Meal currentMeal = suggestedMeals[index];
-                  String mealName = currentMeal.name;
-                  String mealImageUrl = currentMeal.thumbnail;
-
-                  return Column(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  MealDetailScreen(meal: currentMeal),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          width: double.infinity,
-                          height: 170,
-                          decoration: BoxDecoration(
-                            color: darkModeEnabled
-                                ? Colors.grey[800]
-                                : Colors.grey[300],
-                            borderRadius: BorderRadius.circular(10.0),
-                            border: Border.all(
-                              color: darkModeEnabled
-                                  ? Colors.white54
-                                  : Colors.black26,
-                            ),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10.0),
-                            child: Image.network(
-                              mealImageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Center(
-                                  child: Icon(
-                                    Icons.broken_image,
-                                    color: Colors.grey,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Container(
-                        width: double.infinity,
-                        child: Text(
-                          mealName,
-                          style: TextStyle(fontSize: 16, color: textColor),
-                          textAlign: TextAlign.center,
-                          softWrap: true,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              );
-            }
-          },
-        ),
-      ),
-    );
-  }
-
-  Future<List<Meal>> _fetchSixRandomMeals() async {
-    List<Future<Meal>> fetchMealFutures =
-        List.generate(6, (index) => _fetchRandomMeal());
-
-    List<Meal> meals = await Future.wait(fetchMealFutures);
-
-    return meals;
-  }
-
-  Future<Meal> _fetchRandomMeal() async {
-    final response = await http
-        .get(Uri.parse('https://www.themealdb.com/api/json/v1/1/random.php'));
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data['meals'] != null && data['meals'].isNotEmpty) {
-        return Meal.fromJson(data['meals'][0]);
-      } else {
-        throw Exception('No meal data found.');
-      }
-    } else {
-      throw Exception('Failed to load meal.');
-    }
-  }
-}
-
 class Home extends StatefulWidget {
   final VoidCallback onNavigateToFavorites;
   final bool darkModeEnabled;
-  final bool isLoggedIn; 
+  final bool isLoggedIn;
+  final int? currentUserId;
+  final VoidCallback onNavigateToSignIn;
+  final Function(bool) onUpdateLoginStatus;
 
   Home({
     required this.onNavigateToFavorites,
     required this.darkModeEnabled,
-    required this.isLoggedIn, 
+    required this.isLoggedIn,
+    required this.currentUserId,
+    required this.onNavigateToSignIn,
+    required this.onUpdateLoginStatus,
   });
 
   @override
@@ -227,6 +69,7 @@ class _HomeState extends State<Home> {
   ];
 
   String _searchQuery = "";
+  
   List<String> _filteredMeals = [];
 
   final FocusNode _focusNode = FocusNode();
@@ -236,17 +79,37 @@ class _HomeState extends State<Home> {
   bool _isLoadingMeals = false;
   String _mealError = '';
 
+      List<Meal> _favoriteMeals = [];
+
   @override
   void initState() {
     super.initState();
     _filteredMeals = [];
     _fetchSuggestedMeals();
-  }
+    _fetchFavoriteMeals();   }
 
   @override
   void dispose() {
     _focusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchFavoriteMeals() async {
+    if (widget.currentUserId != null) {
+      final dbHelper = DatabaseHelper();
+      List<Map<String, dynamic>> favoriteMealsData =
+          await dbHelper.getFavoriteMealsByUserId(widget.currentUserId!);
+      List<Meal> favoriteMeals =
+          favoriteMealsData.map((mealData) => Meal.fromMap(mealData)).toList();
+
+      setState(() {
+        _favoriteMeals = favoriteMeals;
+      });
+    } else {
+      setState(() {
+        _favoriteMeals = [];
+      });
+    }
   }
 
   Future<Meal> _fetchRandomMeal() async {
@@ -303,8 +166,54 @@ class _HomeState extends State<Home> {
     });
   }
 
+  Widget _buildMealCard(Meal meal) {
+  final textColor = widget.darkModeEnabled ? Colors.white : Colors.black;
+  return Column(
+    children: [
+      GestureDetector(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => MealDetailScreen(meal: meal),
+            ),
+          );
+        },
+        child: Container(
+          width: 170,
+          height: 170,
+          decoration: BoxDecoration(
+            color: widget.darkModeEnabled ? Colors.grey[800] : Colors.grey[300],
+            borderRadius: BorderRadius.circular(10.0),
+            border: Border.all(
+              color: widget.darkModeEnabled ? Colors.white54 : Colors.black26,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10.0),
+            child: Image.network(
+              meal.thumbnail,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+      ),
+      SizedBox(height: 8),
+      Container(
+        width: 170,
+        child: Text(
+          meal.name,
+          style: TextStyle(fontSize: 16, color: textColor),
+          textAlign: TextAlign.center,
+          softWrap: true,
+        ),
+      ),
+    ],
+  );
+}
+
+
   @override
-  Widget build(BuildContext context) {
+ Widget build(BuildContext context) {
     final textColor = widget.darkModeEnabled ? Colors.white : Colors.black;
 
     return Stack(
@@ -312,7 +221,7 @@ class _HomeState extends State<Home> {
         SingleChildScrollView(
           child: Column(
             children: [
-              Container(
+                            Container(
                 height: 40,
                 margin: const EdgeInsets.symmetric(
                     horizontal: 50.0, vertical: 12.0),
@@ -379,7 +288,10 @@ class _HomeState extends State<Home> {
                         Navigator.of(context).push(
                           SlideTransitionPageRoute(
                             page: SuggestedMealsScreen(
-                                darkModeEnabled: widget.darkModeEnabled),
+                              darkModeEnabled: widget.darkModeEnabled,
+                              currentUserId: widget.currentUserId,
+                              onLoginStatusChanged: widget.onUpdateLoginStatus,
+                            ),
                           ),
                         );
                       },
@@ -567,88 +479,53 @@ class _HomeState extends State<Home> {
                 child: Text('Refresh Suggested Meals'),
               ),
               SizedBox(height: 35.0),
-              Padding(
+              
+                            Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 20.0, vertical: 16.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Your Favorites',
-                        style: TextStyle(fontSize: 20, color: textColor)),
+                    Text(
+                      'Your Favorites',
+                      style: TextStyle(fontSize: 20, color: textColor),
+                    ),
                     TextButton(
                       onPressed: widget.onNavigateToFavorites,
-                      child: Text('More...',
-                          style: TextStyle(fontSize: 20, color: textColor)),
+                      child: Text(
+                        'More...',
+                        style: TextStyle(fontSize: 20, color: textColor),
+                      ),
                     ),
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20.0, vertical: 10.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      children: [
-                        Container(
-                          width: 170,
-                          height: 170,
-                          decoration: BoxDecoration(
-                            color: widget.darkModeEnabled
-                                ? Colors.grey[800]
-                                : Colors.grey[300],
-                            borderRadius: BorderRadius.circular(10.0),
-                            border: Border.all(
-                                color: widget.darkModeEnabled
-                                    ? Colors.white54
-                                    : Colors.black26),
-                          ),
-                          child: Center(
-                            child: Text(
-                              "Image 3",
-                              style:
-                                  TextStyle(color: textColor.withOpacity(0.7)),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text("Favorite 1",
-                            style: TextStyle(fontSize: 16, color: textColor)),
-                      ],
-                    ),
-                    Column(
-                      children: [
-                        Container(
-                          width: 170,
-                          height: 170,
-                          decoration: BoxDecoration(
-                            color: widget.darkModeEnabled
-                                ? Colors.grey[800]
-                                : Colors.grey[300],
-                            borderRadius: BorderRadius.circular(10.0),
-                            border: Border.all(
-                                color: widget.darkModeEnabled
-                                    ? Colors.white54
-                                    : Colors.black26),
-                          ),
-                          child: Center(
-                            child: Text(
-                              "Image 4",
-                              style:
-                                  TextStyle(color: textColor.withOpacity(0.7)),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text("Favorite 2",
-                            style: TextStyle(fontSize: 16, color: textColor)),
-                      ],
-                    ),
-                  ],
+              
+              if (_favoriteMeals.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20.0, vertical: 10.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (_favoriteMeals.length > 0)
+                        _buildMealCard(_favoriteMeals[0]),
+                      if (_favoriteMeals.length > 1)
+                        _buildMealCard(_favoriteMeals[1]),
+                    ],
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20.0, vertical: 10.0),
+                  child: Text(
+                    'No favorite meals yet.',
+                    style: TextStyle(fontSize: 16, color: textColor),
+                  ),
                 ),
-              ),
-            ],
+
+                          ],
           ),
         ),
         if (_filteredMeals.isNotEmpty)
@@ -696,40 +573,104 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final PageController _pageController = PageController();
   int _currentIndex = 0;
   bool _animationsOff = false;
   bool _darkModeEnabled = false;
-  final List<Widget> _screens = [];
   bool _isLoggedIn = false;
+  String? _userName;
+  int? _currentUserId;
+
+  final PageController _pageController = PageController();
+  List<Widget> _screens = [];
 
   @override
   void initState() {
     super.initState();
-    _loadDarkModePreference();
+    _loadSettings();
   }
 
-Future<void> _loadDarkModePreference() async {
+  Future<void> _loadSettings() async {
     final settings = await DatabaseHelper().getSettings();
+    bool isLoggedIn = settings['isLoggedIn'] ?? false;
+    bool darkMode = settings['darkMode'] ?? false;
+    bool animationsOff = settings['animationsOff'] ?? false;
+
+    if (isLoggedIn) {
+      int? userId = settings['currentUserId'];
+      if (userId != null) {
+        final user = await DatabaseHelper().getUserById(userId);
+        if (user != null) {
+          setState(() {
+            _userName = '${user['firstName']} ${user['lastName']}';
+            _isLoggedIn = true;
+            _currentUserId = userId;
+          });
+        } else {
+                    await DatabaseHelper().updateSettings(
+            isLoggedIn: false,
+            currentUserId: null,
+          );
+          setState(() {
+            _isLoggedIn = false;
+            _userName = null;
+            _currentUserId = null;
+          });
+        }
+      } else {
+                await DatabaseHelper().updateSettings(
+          isLoggedIn: false,
+          currentUserId: null,
+        );
+        setState(() {
+          _isLoggedIn = false;
+          _userName = null;
+          _currentUserId = null;
+        });
+      }
+    } else {
+      setState(() {
+        _isLoggedIn = false;
+        _userName = null;
+        _currentUserId = null;
+      });
+    }
+
     setState(() {
-      _darkModeEnabled = settings['darkMode'] ?? false;
-      _animationsOff = settings['animationsOff'] ?? false;
-      _isLoggedIn = settings['isLoggedIn'] ?? false; 
-      _screens.addAll([
-        Home(
-          onNavigateToFavorites: _navigateToFavorites,
-          darkModeEnabled: _darkModeEnabled,
-          isLoggedIn: _isLoggedIn,
-        ),
-        MealPlan(),
-        GroceryList(),
-        Favorites(),
-      ]);
+      _darkModeEnabled = darkMode;
+      _animationsOff = animationsOff;
     });
+
+        _initializeScreens();
+  }
+
+  void _initializeScreens() {
+    _screens = [
+      Home(
+        onNavigateToFavorites: _navigateToFavorites,
+        darkModeEnabled: _darkModeEnabled,
+        isLoggedIn: _isLoggedIn,
+        currentUserId: _currentUserId,
+        onNavigateToSignIn: _navigateToSignIn,
+        onUpdateLoginStatus: _onLoginStatusChanged,
+      ),
+      MealPlan(),
+      GroceryList(),
+      Favorites(
+        darkModeEnabled: _darkModeEnabled,
+        currentUserId: _currentUserId,
+      ),
+    ];
   }
 
   void _navigateToFavorites() {
     _onItemTapped(3);
+  }
+
+  void _onSignedIn() {
+    setState(() {
+      _isLoggedIn = true;
+    });
+    _loadSettings();
   }
 
   void _onItemTapped(int index) {
@@ -742,30 +683,66 @@ Future<void> _loadDarkModePreference() async {
     }
   }
 
-void _goToSettings() async {
+  void _onLoginStatusChanged(bool isLoggedIn) {
+    setState(() {
+      _isLoggedIn = isLoggedIn;
+      if (_isLoggedIn) {
+        _loadSettings();
+      } else {
+        _userName = null;
+        _currentUserId = null;
+        _loadSettings();
+      }
+    });
+  }
 
-  await Navigator.of(context)
-      .push(MaterialPageRoute(
-        builder: (context) => Settings(
-          animationsOff: _animationsOff,
-          onAnimationsToggle: (value) {
-            setState(() => _animationsOff = value);
-          },
-          isLoggedIn: _isLoggedIn, 
-          onLoginStatusChanged: (value) {
-            setState(() => _isLoggedIn = value);
-          },
-        ),
-      ))
-      .then((_) => _loadDarkModePreference());
-}
+  Future<void> _loadUserName() async {
+    final settings = await DatabaseHelper().getSettings();
+    int? userId = settings['currentUserId'];
+    if (userId != null) {
+      final user = await DatabaseHelper().getUserById(userId);
+      if (user != null) {
+        setState(() {
+          _userName = '${user['firstName']} ${user['lastName']}';
+        });
+      }
+    }
+  }
 
+  void _goToSettings() async {
+    await Navigator.of(context)
+        .push(MaterialPageRoute(
+          builder: (context) => Settings(
+            animationsOff: _animationsOff,
+            onAnimationsToggle: (value) {
+              setState(() => _animationsOff = value);
+            },
+            isLoggedIn: _isLoggedIn,
+            onLoginStatusChanged: _onLoginStatusChanged,
+          ),
+        ))
+        .then((_) => _loadSettings());
+  }
+
+  void _navigateToSignIn() async {
+    await Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => SignInScreen(
+              onSignedIn: () {
+                _onLoginStatusChanged(true);
+              },
+            ),
+          ),
+        )
+        .then((_) => _loadSettings());
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _darkModeEnabled ? Colors.black : Colors.white,
-            appBar: PreferredSize(
+      appBar: PreferredSize(
         preferredSize: Size.fromHeight(130.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -773,7 +750,13 @@ void _goToSettings() async {
             AppBar(
               backgroundColor: _darkModeEnabled ? Colors.black : Colors.white,
               title: GestureDetector(
-                onTap: _goToSettings,
+                onTap: () {
+                  if (_isLoggedIn) {
+                    _goToSettings();
+                  } else {
+                    _navigateToSignIn();
+                  }
+                },
                 child: Row(
                   children: [
                     Container(
@@ -791,13 +774,12 @@ void _goToSettings() async {
                     ),
                     SizedBox(width: 8),
                     Text(
-                      _isLoggedIn ? "John Doe" : "Sign In",
+                      _isLoggedIn && _userName != null ? _userName! : "Sign In",
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 20,
                         fontWeight: FontWeight.w400,
-                        color:
-                            _darkModeEnabled ? Colors.white : Colors.black,
+                        color: _darkModeEnabled ? Colors.white : Colors.black,
                       ),
                     ),
                   ],

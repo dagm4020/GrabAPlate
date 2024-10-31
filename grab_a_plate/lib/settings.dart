@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
-import 'sign_in.dart'; 
+import 'sign_in.dart';
+
 class Settings extends StatefulWidget {
   final bool animationsOff;
   final ValueChanged<bool> onAnimationsToggle;
   final bool isLoggedIn;
-  final ValueChanged<bool> onLoginStatusChanged; 
+  final ValueChanged<bool> onLoginStatusChanged;
   Settings({
     required this.animationsOff,
     required this.onAnimationsToggle,
@@ -28,14 +29,47 @@ class _SettingsState extends State<Settings> {
     _loadSettings();
   }
 
-  Future<void> _loadSettings() async {
-    final settings = await DatabaseHelper().getSettings();
+Future<void> _loadSettings() async {
+  final settings = await DatabaseHelper().getSettings();
+  bool isLoggedIn = settings['isLoggedIn'] ?? false;
+
+  if (isLoggedIn) {
+    int? userId = settings['currentUserId'];
+    if (userId != null) {
+      final user = await DatabaseHelper().getUserById(userId);
+      if (user != null) {
+        setState(() {
+          _isLoggedIn = true;
+        });
+      } else {
+                await DatabaseHelper().updateSettings(
+          isLoggedIn: false,
+          currentUserId: null,
+        );
+        setState(() {
+          _isLoggedIn = false;
+        });
+      }
+    } else {
+            await DatabaseHelper().updateSettings(
+        isLoggedIn: false,
+        currentUserId: null,
+      );
+      setState(() {
+        _isLoggedIn = false;
+      });
+    }
+  } else {
     setState(() {
-      _darkModeEnabled = settings['darkMode'] ?? false;
-      _animationsOff = settings['animationsOff'] ?? false;
-      _isLoggedIn = settings['isLoggedIn'] ?? false;
+      _isLoggedIn = false;
     });
   }
+
+  setState(() {
+    _darkModeEnabled = settings['darkMode'] ?? false;
+    _animationsOff = settings['animationsOff'] ?? false;
+  });
+}
 
   Future<void> _saveSettings() async {
     await DatabaseHelper().updateSettings(
@@ -63,10 +97,11 @@ class _SettingsState extends State<Settings> {
       _isLoggedIn = value;
     });
     widget.onLoginStatusChanged(value);
-    _saveSettings();   }
+    _saveSettings();
+  }
 
   void _navigateToSignIn() async {
-        await Navigator.of(context).push(
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => SignInScreen(
           onSignedIn: () {
@@ -76,6 +111,64 @@ class _SettingsState extends State<Settings> {
       ),
     );
   }
+
+void _signOut() async {
+  await DatabaseHelper().updateSettings(
+    isLoggedIn: false,
+    currentUserId: null,
+  );
+  setState(() {
+    _isLoggedIn = false;
+  });
+  widget.onLoginStatusChanged(false);
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('You have been signed out.'),
+      duration: Duration(seconds: 2),
+    ),
+  );
+  Navigator.of(context).pop(); }
+
+void _resetUserDatabase() async {
+  bool confirm = await showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Reset User Database'),
+      content: Text(
+          'Are you sure you want to delete all user data? This action cannot be undone.'),
+      actions: [
+        TextButton(
+          child: Text('Cancel'),
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+        TextButton(
+          child: Text('Delete', style: TextStyle(color: Colors.red)),
+          onPressed: () => Navigator.of(context).pop(true),
+        ),
+      ],
+    ),
+  );
+
+  if (confirm == true) {
+    await DatabaseHelper().deleteAllUsers();
+    await DatabaseHelper().updateSettings(
+      isLoggedIn: false,
+      currentUserId: null,
+    );
+    setState(() {
+      _isLoggedIn = false;
+    });
+    widget.onLoginStatusChanged(false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('All user data has been deleted.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    Navigator.of(context).pop();
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +186,7 @@ class _SettingsState extends State<Settings> {
         color: _darkModeEnabled ? Colors.black : Colors.white,
         child: ListView(
           children: [
-                        if (!_isLoggedIn)
+            if (!_isLoggedIn)
               ListTile(
                 title: Text(
                   'Sign In',
@@ -104,6 +197,18 @@ class _SettingsState extends State<Settings> {
                 trailing: Icon(Icons.login,
                     color: _darkModeEnabled ? Colors.white : Colors.black),
                 onTap: _navigateToSignIn,
+              ),
+            if (_isLoggedIn)
+              ListTile(
+                title: Text(
+                  'Sign Out',
+                  style: TextStyle(
+                      fontSize: 18,
+                      color: _darkModeEnabled ? Colors.white : Colors.black),
+                ),
+                trailing: Icon(Icons.logout,
+                    color: _darkModeEnabled ? Colors.white : Colors.black),
+                onTap: _signOut,
               ),
             ListTile(
               title: Text(
@@ -125,6 +230,15 @@ class _SettingsState extends State<Settings> {
                 ));
               },
             ),
+            if (_isLoggedIn)
+              ListTile(
+                title: Text(
+                  'Reset User Database',
+                  style: TextStyle(fontSize: 18, color: Colors.red),
+                ),
+                trailing: Icon(Icons.delete_forever, color: Colors.red),
+                onTap: _resetUserDatabase,
+              ),
           ],
         ),
       ),

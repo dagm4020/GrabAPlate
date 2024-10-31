@@ -11,21 +11,27 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInScreenState extends State<SignInScreen> {
-    final TextEditingController _signInUsernameController = TextEditingController();
-  final TextEditingController _signInPasswordController = TextEditingController();
+  final TextEditingController _signInUsernameController =
+      TextEditingController();
+  final TextEditingController _signInPasswordController =
+      TextEditingController();
 
-    final TextEditingController _createFirstNameController = TextEditingController();
-  final TextEditingController _createLastNameController = TextEditingController();
+  final TextEditingController _createFirstNameController =
+      TextEditingController();
+  final TextEditingController _createLastNameController =
+      TextEditingController();
   final TextEditingController _createAgeController = TextEditingController();
   final TextEditingController _createEmailController = TextEditingController();
-  final TextEditingController _createUsernameController = TextEditingController();
-  final TextEditingController _createPasswordController = TextEditingController();
+  final TextEditingController _createUsernameController =
+      TextEditingController();
+  final TextEditingController _createPasswordController =
+      TextEditingController();
 
   bool _isSigningIn = false;
   bool _isCreatingAccount = false;
   String _error = '';
 
-    bool _isCreateAccount = false;
+  bool _isCreateAccount = false;
 
   Future<void> _signIn() async {
     setState(() {
@@ -37,24 +43,25 @@ class _SignInScreenState extends State<SignInScreen> {
     String password = _signInPasswordController.text.trim();
 
     if (username.isNotEmpty && password.isNotEmpty) {
-            final user = await DatabaseHelper().getUser(username, password);
+      final user = await DatabaseHelper().getUser(username, password);
 
       if (user != null) {
-                await DatabaseHelper().updateSettings(
+        await DatabaseHelper().updateSettings(
           isLoggedIn: true,
           currentUserId: user['id'],
         );
 
-                ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Welcome back, ${user['firstName']}!'),
             duration: Duration(seconds: 2),
           ),
         );
 
-                widget.onSignedIn();
+        widget.onSignedIn();
 
-                Navigator.of(context).pop();       } else {
+        Navigator.of(context).pop();
+      } else {
         setState(() {
           _error = 'Invalid username or password.';
         });
@@ -95,41 +102,36 @@ class _SignInScreenState extends State<SignInScreen> {
           _error = 'Please enter a valid age.';
         });
       } else {
-                final db = DatabaseHelper();
-        final existingUserByUsername = await db.getUser(username, password);         final existingUserByEmail = await db.database.then((dbInstance) async {
-          final List<Map<String, dynamic>> users = await dbInstance.query(
-            'Users',
-            where: 'email = ?',
-            whereArgs: [email],
-          );
-          return users.isNotEmpty;
-        });
+        final db = DatabaseHelper();
+        final existingUserByUsername = await db.getUserByUsername(username);
+        final existingUserByEmail = await db.getUserByEmail(email);
 
         if (existingUserByUsername != null) {
           setState(() {
             _error = 'Username already exists.';
           });
-        } else if (existingUserByEmail) {
+        } else if (existingUserByEmail != null) {
           setState(() {
             _error = 'Email already exists.';
           });
         } else {
-                    await DatabaseHelper().insertUser({
+          await DatabaseHelper().insertUser({
             'firstName': firstName,
             'lastName': lastName,
             'age': age,
             'email': email,
             'username': username,
-            'password': password,           });
+            'password': password,
+          });
 
-                    ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Account created successfully! Please sign in.'),
               duration: Duration(seconds: 2),
             ),
           );
 
-                    setState(() {
+          setState(() {
             _isCreateAccount = false;
           });
         }
@@ -162,7 +164,8 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,       appBar: AppBar(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
         title: Text("Sign In / Create Account"),
         backgroundColor: Colors.white,
         iconTheme: IconThemeData(color: Colors.black),
@@ -171,7 +174,8 @@ class _SignInScreenState extends State<SignInScreen> {
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
-          child: _isCreateAccount ? _buildCreateAccountForm() : _buildSignInForm(),
+          child:
+              _isCreateAccount ? _buildCreateAccountForm() : _buildSignInForm(),
         ),
       ),
     );
