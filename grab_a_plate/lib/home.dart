@@ -10,7 +10,10 @@ import 'favorites.dart';
 import 'settings.dart';
 import 'database_helper.dart';
 import 'sign_in.dart';
-import 'suggested_meals.dart'; 
+import 'suggested_meals.dart';
+import 'search.dart';
+import 'main.dart';
+
 class SlideTransitionPageRoute extends PageRouteBuilder {
   final Widget page;
   SlideTransitionPageRoute({required this.page})
@@ -42,35 +45,23 @@ class Home extends StatefulWidget {
   final Function(bool) onUpdateLoginStatus;
 
   Home({
+    Key? key,
     required this.onNavigateToFavorites,
     required this.darkModeEnabled,
     required this.isLoggedIn,
     required this.currentUserId,
     required this.onNavigateToSignIn,
     required this.onUpdateLoginStatus,
-  });
-
+  }) : super(key: key);
   @override
   _HomeState createState() => _HomeState();
 }
 
-class _HomeState extends State<Home> {
-  final List<String> _allMeals = [
-    "Spicy Arrabiata Penne",
-    "Chicken Alfredo",
-    "Beef Stroganoff",
-    "Spaghetti Bolognese",
-    "Grilled Salmon",
-    "Vegetable Stir Fry",
-    "Shrimp Tacos",
-    "Spicy Tuna Roll",
-    "Margherita Pizza",
-    "Caesar Salad",
-  ];
-
+class _HomeState extends State<Home> with RouteAware {
   String _searchQuery = "";
-  
-  List<String> _filteredMeals = [];
+  List<Meal> _searchResults = [];
+  Timer? _debounce;
+  bool _isSearching = false;
 
   final FocusNode _focusNode = FocusNode();
 
@@ -79,31 +70,56 @@ class _HomeState extends State<Home> {
   bool _isLoadingMeals = false;
   String _mealError = '';
 
-      List<Meal> _favoriteMeals = [];
+  List<Map<String, dynamic>> _favoriteMeals = [];
 
   @override
   void initState() {
     super.initState();
-    _filteredMeals = [];
     _fetchSuggestedMeals();
-    _fetchFavoriteMeals();   }
+    _fetchFavoriteMeals();
+  }
+
+  @override
+  void didUpdateWidget(covariant Home oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentUserId != widget.currentUserId) {
+      _fetchFavoriteMeals();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ModalRoute<dynamic>? route = ModalRoute.of(context);
+    if (route is PageRoute<dynamic>) {
+      routeObserver.subscribe(this, route);
+    }
+  }
 
   @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _focusNode.dispose();
+    _debounce?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    _fetchFavoriteMeals();
   }
 
   Future<void> _fetchFavoriteMeals() async {
     if (widget.currentUserId != null) {
       final dbHelper = DatabaseHelper();
       List<Map<String, dynamic>> favoriteMealsData =
-          await dbHelper.getFavoriteMealsByUserId(widget.currentUserId!);
-      List<Meal> favoriteMeals =
-          favoriteMealsData.map((mealData) => Meal.fromMap(mealData)).toList();
+          await dbHelper.getFavorites(widget.currentUserId!);
+
+      List<Map<String, dynamic>> firstTwoFavorites =
+          favoriteMealsData.take(2).toList();
 
       setState(() {
-        _favoriteMeals = favoriteMeals;
+        _favoriteMeals = firstTwoFavorites;
       });
     } else {
       setState(() {
@@ -151,69 +167,185 @@ class _HomeState extends State<Home> {
     }
   }
 
+  Future<Meal?> _fetchMealDetails(String mealId) async {
+    final response = await http.get(Uri.parse(
+        'https://www.themealdb.com/api/json/v1/1/lookup.php?i=$mealId'));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['meals'] != null && data['meals'].isNotEmpty) {
+        return Meal.fromJson(data['meals'][0]);
+      }
+    }
+    return null;
+  }
+
   void _updateSearch(String query) {
-    setState(() {
-      _searchQuery = query;
-      if (_searchQuery.isEmpty) {
-        _filteredMeals = [];
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(Duration(milliseconds: 500), () {
+      if (query.isNotEmpty) {
+        _searchMeals(query);
       } else {
-        _filteredMeals = _allMeals
-            .where((meal) =>
-                meal.toLowerCase().contains(_searchQuery.toLowerCase()))
-            .take(5)
-            .toList();
+        setState(() {
+          _searchResults = [];
+        });
       }
     });
   }
 
-  Widget _buildMealCard(Meal meal) {
-  final textColor = widget.darkModeEnabled ? Colors.white : Colors.black;
-  return Column(
-    children: [
-      GestureDetector(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => MealDetailScreen(meal: meal),
-            ),
-          );
-        },
-        child: Container(
-          width: 170,
-          height: 170,
-          decoration: BoxDecoration(
-            color: widget.darkModeEnabled ? Colors.grey[800] : Colors.grey[300],
-            borderRadius: BorderRadius.circular(10.0),
-            border: Border.all(
-              color: widget.darkModeEnabled ? Colors.white54 : Colors.black26,
-            ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10.0),
-            child: Image.network(
-              meal.thumbnail,
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-      ),
-      SizedBox(height: 8),
-      Container(
-        width: 170,
-        child: Text(
-          meal.name,
-          style: TextStyle(fontSize: 16, color: textColor),
-          textAlign: TextAlign.center,
-          softWrap: true,
-        ),
-      ),
-    ],
-  );
-}
+  Future<void> _searchMeals(String query) async {
+    setState(() {
+      _isSearching = true;
+    });
 
+    final response = await http.get(Uri.parse(
+        'https://www.themealdb.com/api/json/v1/1/search.php?s=$query'));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      List<Meal> meals = [];
+      if (data['meals'] != null) {
+        meals =
+            List<Meal>.from(data['meals'].map((meal) => Meal.fromJson(meal)));
+      }
+      setState(() {
+        _searchResults = meals;
+        _isSearching = false;
+      });
+    } else {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+    }
+  }
+
+  Widget _buildMealCard(Meal meal) {
+    final textColor = widget.darkModeEnabled ? Colors.white : Colors.black;
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: () {
+            _navigateToMealDetail(meal);
+          },
+          child: Container(
+            width: 170,
+            height: 170,
+            decoration: BoxDecoration(
+              color:
+                  widget.darkModeEnabled ? Colors.grey[800] : Colors.grey[300],
+              borderRadius: BorderRadius.circular(10.0),
+              border: Border.all(
+                color: widget.darkModeEnabled ? Colors.white54 : Colors.black26,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10.0),
+              child: Image.network(
+                meal.thumbnail,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: 8),
+        Container(
+          width: 170,
+          child: Text(
+            meal.name,
+            style: TextStyle(fontSize: 16, color: textColor),
+            textAlign: TextAlign.center,
+            softWrap: true,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFavoriteMealCard(Map<String, dynamic> mealData) {
+    final textColor = widget.darkModeEnabled ? Colors.white : Colors.black;
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: () async {
+            String mealId = mealData['mealId'];
+            Meal? meal = await _fetchMealDetails(mealId);
+            if (meal != null) {
+              _navigateToMealDetail(meal);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Failed to load meal details.'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+          child: Container(
+            width: 170,
+            height: 170,
+            decoration: BoxDecoration(
+              color:
+                  widget.darkModeEnabled ? Colors.grey[800] : Colors.grey[300],
+              borderRadius: BorderRadius.circular(10.0),
+              border: Border.all(
+                color: widget.darkModeEnabled ? Colors.white54 : Colors.black26,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10.0),
+              child: Image.network(
+                mealData['mealThumbnail'],
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Center(
+                    child: Icon(
+                      Icons.broken_image,
+                      color: Colors.grey,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: 8),
+        Container(
+          width: 170,
+          child: Text(
+            mealData['mealName'],
+            style: TextStyle(fontSize: 16, color: textColor),
+            textAlign: TextAlign.center,
+            softWrap: true,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _navigateToMealDetail(Meal meal) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => MealDetailScreen(
+          meal: meal,
+          currentUserId: widget.currentUserId,
+        ),
+      ),
+    );
+  }
+
+  void _onSearchSubmitted(String query) {
+    _focusNode.unfocus();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => SearchScreen(
+          query: query,
+          currentUserId: widget.currentUserId,
+        ),
+      ),
+    );
+  }
 
   @override
- Widget build(BuildContext context) {
+  Widget build(BuildContext context) {
     final textColor = widget.darkModeEnabled ? Colors.white : Colors.black;
 
     return Stack(
@@ -221,7 +353,7 @@ class _HomeState extends State<Home> {
         SingleChildScrollView(
           child: Column(
             children: [
-                            Container(
+              Container(
                 height: 40,
                 margin: const EdgeInsets.symmetric(
                     horizontal: 50.0, vertical: 12.0),
@@ -236,6 +368,7 @@ class _HomeState extends State<Home> {
                 child: TextField(
                   focusNode: _focusNode,
                   onChanged: _updateSearch,
+                  onSubmitted: _onSearchSubmitted,
                   decoration: InputDecoration(
                     hintText: 'Search...',
                     prefixIcon:
@@ -244,37 +377,9 @@ class _HomeState extends State<Home> {
                     hintStyle: TextStyle(color: textColor.withOpacity(0.6)),
                     contentPadding: EdgeInsets.symmetric(vertical: 10.0),
                   ),
+                  style: TextStyle(color: textColor),
                 ),
               ),
-              if (_filteredMeals.isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 50.0),
-                  decoration: BoxDecoration(
-                    color: widget.darkModeEnabled
-                        ? Colors.grey[800]
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(10.0),
-                    border: Border.all(color: textColor.withOpacity(0.5)),
-                  ),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _filteredMeals.length,
-                    itemBuilder: (context, index) {
-                      return ListTile(
-                        title: Text(
-                          _filteredMeals[index],
-                          style: TextStyle(
-                              color: widget.darkModeEnabled
-                                  ? Colors.white
-                                  : Colors.black),
-                        ),
-                        onTap: () {
-                          print("Selected Meal: ${_filteredMeals[index]}");
-                        },
-                      );
-                    },
-                  ),
-                ),
               Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 20.0, vertical: 16.0),
@@ -307,154 +412,68 @@ class _HomeState extends State<Home> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            if (_meal1 != null) {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      MealDetailScreen(meal: _meal1!),
-                                ),
-                              );
-                            }
-                          },
-                          child: Container(
-                            width: 170,
-                            height: 170,
-                            decoration: BoxDecoration(
+                    if (_meal1 != null)
+                      _buildMealCard(_meal1!)
+                    else
+                      Container(
+                        width: 170,
+                        height: 170,
+                        decoration: BoxDecoration(
+                          color: widget.darkModeEnabled
+                              ? Colors.grey[800]
+                              : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(10.0),
+                          border: Border.all(
                               color: widget.darkModeEnabled
-                                  ? Colors.grey[800]
-                                  : Colors.grey[300],
-                              borderRadius: BorderRadius.circular(10.0),
-                              border: Border.all(
-                                  color: widget.darkModeEnabled
-                                      ? Colors.white54
-                                      : Colors.black26),
-                            ),
-                            child: _isLoadingMeals
-                                ? Center(
-                                    child: CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          widget.darkModeEnabled
-                                              ? Colors.white
-                                              : Colors.black),
-                                    ),
-                                  )
-                                : _mealError.isNotEmpty
-                                    ? Center(
-                                        child: Text(
-                                          'Error',
-                                          style: TextStyle(
-                                              color: Colors.red, fontSize: 16),
-                                        ),
-                                      )
-                                    : _meal1 != null
-                                        ? ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(10.0),
-                                            child: Image.network(
-                                              _meal1!.thumbnail,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          )
-                                        : Center(
-                                            child: Text(
-                                              "Image 1",
-                                              style: TextStyle(
-                                                  color: textColor
-                                                      .withOpacity(0.7)),
-                                            ),
-                                          ),
-                          ),
+                                  ? Colors.white54
+                                  : Colors.black26),
                         ),
-                        SizedBox(height: 8),
-                        Container(
-                          width: 170,
-                          child: Text(
-                            _meal1 != null ? _meal1!.name : "Meal Name 1",
-                            style: TextStyle(fontSize: 16, color: textColor),
-                            textAlign: TextAlign.center,
-                            softWrap: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            if (_meal2 != null) {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      MealDetailScreen(meal: _meal2!),
+                        child: Center(
+                          child: _isLoadingMeals
+                              ? CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      widget.darkModeEnabled
+                                          ? Colors.white
+                                          : Colors.black),
+                                )
+                              : Text(
+                                  _mealError.isNotEmpty ? 'Error' : 'Image 1',
+                                  style: TextStyle(
+                                      color: textColor.withOpacity(0.7)),
                                 ),
-                              );
-                            }
-                          },
-                          child: Container(
-                            width: 170,
-                            height: 170,
-                            decoration: BoxDecoration(
+                        ),
+                      ),
+                    if (_meal2 != null)
+                      _buildMealCard(_meal2!)
+                    else
+                      Container(
+                        width: 170,
+                        height: 170,
+                        decoration: BoxDecoration(
+                          color: widget.darkModeEnabled
+                              ? Colors.grey[800]
+                              : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(10.0),
+                          border: Border.all(
                               color: widget.darkModeEnabled
-                                  ? Colors.grey[800]
-                                  : Colors.grey[300],
-                              borderRadius: BorderRadius.circular(10.0),
-                              border: Border.all(
-                                  color: widget.darkModeEnabled
-                                      ? Colors.white54
-                                      : Colors.black26),
-                            ),
-                            child: _isLoadingMeals
-                                ? Center(
-                                    child: CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          widget.darkModeEnabled
-                                              ? Colors.white
-                                              : Colors.black),
-                                    ),
-                                  )
-                                : _mealError.isNotEmpty
-                                    ? Center(
-                                        child: Text(
-                                          'Error',
-                                          style: TextStyle(
-                                              color: Colors.red, fontSize: 16),
-                                        ),
-                                      )
-                                    : _meal2 != null
-                                        ? ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(10.0),
-                                            child: Image.network(
-                                              _meal2!.thumbnail,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          )
-                                        : Center(
-                                            child: Text(
-                                              "Image 2",
-                                              style: TextStyle(
-                                                  color: textColor
-                                                      .withOpacity(0.7)),
-                                            ),
-                                          ),
-                          ),
+                                  ? Colors.white54
+                                  : Colors.black26),
                         ),
-                        SizedBox(height: 8),
-                        Container(
-                          width: 170,
-                          child: Text(
-                            _meal2 != null ? _meal2!.name : "Meal Name 2",
-                            style: TextStyle(fontSize: 16, color: textColor),
-                            textAlign: TextAlign.center,
-                            softWrap: true,
-                          ),
+                        child: Center(
+                          child: _isLoadingMeals
+                              ? CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      widget.darkModeEnabled
+                                          ? Colors.white
+                                          : Colors.black),
+                                )
+                              : Text(
+                                  _mealError.isNotEmpty ? 'Error' : 'Image 2',
+                                  style: TextStyle(
+                                      color: textColor.withOpacity(0.7)),
+                                ),
                         ),
-                      ],
-                    ),
+                      ),
                   ],
                 ),
               ),
@@ -479,8 +498,7 @@ class _HomeState extends State<Home> {
                 child: Text('Refresh Suggested Meals'),
               ),
               SizedBox(height: 35.0),
-              
-                            Padding(
+              Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 20.0, vertical: 16.0),
                 child: Row(
@@ -500,7 +518,6 @@ class _HomeState extends State<Home> {
                   ],
                 ),
               ),
-              
               if (_favoriteMeals.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -508,10 +525,10 @@ class _HomeState extends State<Home> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      if (_favoriteMeals.length > 0)
-                        _buildMealCard(_favoriteMeals[0]),
+                      _buildFavoriteMealCard(_favoriteMeals[0]),
                       if (_favoriteMeals.length > 1)
-                        _buildMealCard(_favoriteMeals[1]),
+                        _buildFavoriteMealCard(_favoriteMeals[1]),
+                      if (_favoriteMeals.length == 1) SizedBox(width: 170),
                     ],
                   ),
                 )
@@ -524,11 +541,10 @@ class _HomeState extends State<Home> {
                     style: TextStyle(fontSize: 16, color: textColor),
                   ),
                 ),
-
-                          ],
+            ],
           ),
         ),
-        if (_filteredMeals.isNotEmpty)
+        if (_searchResults.isNotEmpty && _focusNode.hasFocus)
           Positioned(
             top: 64.0,
             left: 50.0,
@@ -539,26 +555,43 @@ class _HomeState extends State<Home> {
               color: widget.darkModeEnabled ? Colors.grey[800] : Colors.white,
               child: ListView.builder(
                 shrinkWrap: true,
-                itemCount: _filteredMeals.length,
+                itemCount: _searchResults.length,
                 itemBuilder: (context, index) {
+                  Meal meal = _searchResults[index];
                   return ListTile(
                     title: Text(
-                      _filteredMeals[index],
+                      meal.name,
                       style: TextStyle(
                           color: widget.darkModeEnabled
                               ? Colors.white
                               : Colors.black),
                     ),
                     onTap: () {
-                      print("Selected Meal: ${_filteredMeals[index]}");
+                      _navigateToMealDetail(meal);
                       setState(() {
                         _searchQuery = "";
-                        _filteredMeals = [];
+                        _searchResults = [];
                       });
                       _focusNode.unfocus();
                     },
                   );
                 },
+              ),
+            ),
+          ),
+        if (_isSearching)
+          Positioned(
+            top: 64.0,
+            left: 50.0,
+            right: 50.0,
+            child: Container(
+              padding: EdgeInsets.all(16.0),
+              color: widget.darkModeEnabled ? Colors.grey[800] : Colors.white,
+              child: Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                      widget.darkModeEnabled ? Colors.white : Colors.black),
+                ),
               ),
             ),
           ),
@@ -606,7 +639,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _currentUserId = userId;
           });
         } else {
-                    await DatabaseHelper().updateSettings(
+          await DatabaseHelper().updateSettings(
             isLoggedIn: false,
             currentUserId: null,
           );
@@ -617,7 +650,7 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         }
       } else {
-                await DatabaseHelper().updateSettings(
+        await DatabaseHelper().updateSettings(
           isLoggedIn: false,
           currentUserId: null,
         );
@@ -640,12 +673,13 @@ class _HomeScreenState extends State<HomeScreen> {
       _animationsOff = animationsOff;
     });
 
-        _initializeScreens();
+    _initializeScreens();
   }
 
   void _initializeScreens() {
     _screens = [
       Home(
+        key: ValueKey(_currentUserId),
         onNavigateToFavorites: _navigateToFavorites,
         darkModeEnabled: _darkModeEnabled,
         isLoggedIn: _isLoggedIn,
@@ -653,7 +687,9 @@ class _HomeScreenState extends State<HomeScreen> {
         onNavigateToSignIn: _navigateToSignIn,
         onUpdateLoginStatus: _onLoginStatusChanged,
       ),
-      MealPlan(),
+      MealPlan(
+        currentUserId: _currentUserId,
+      ),
       GroceryList(),
       Favorites(
         darkModeEnabled: _darkModeEnabled,
@@ -814,9 +850,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: _darkModeEnabled ? Colors.white : Colors.black),
                 onPressed: () => _onItemTapped(1)),
             IconButton(
-                icon: Icon(Icons.list,
-                    color: _darkModeEnabled ? Colors.white : Colors.black),
-                onPressed: () => _onItemTapped(2)),
+              icon: Icon(
+                Icons.shopping_cart,
+                color: _darkModeEnabled ? Colors.white : Colors.black,
+              ),
+              onPressed: () => _onItemTapped(2),
+            ),
             IconButton(
                 icon: Icon(Icons.favorite,
                     color: _darkModeEnabled ? Colors.white : Colors.black),

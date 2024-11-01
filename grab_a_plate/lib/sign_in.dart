@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
+import 'home.dart';
 
 class SignInScreen extends StatefulWidget {
   final VoidCallback onSignedIn;
@@ -60,7 +61,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
         widget.onSignedIn();
 
-        Navigator.of(context).pop();
+        Navigator.of(context).popUntil((route) => route.isFirst);
       } else {
         setState(() {
           _error = 'Invalid username or password.';
@@ -205,6 +206,9 @@ class _SignInScreenState extends State<SignInScreen> {
           decoration: InputDecoration(
             labelText: 'Username',
             border: OutlineInputBorder(),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.blueAccent),
+            ),
           ),
         ),
         SizedBox(height: 20),
@@ -213,11 +217,14 @@ class _SignInScreenState extends State<SignInScreen> {
           decoration: InputDecoration(
             labelText: 'Password',
             border: OutlineInputBorder(),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.blueAccent),
+            ),
           ),
           obscureText: true,
         ),
         SizedBox(height: 20),
-        ElevatedButton(
+        OutlinedButton(
           onPressed: _isSigningIn ? null : _signIn,
           child: _isSigningIn
               ? SizedBox(
@@ -225,17 +232,23 @@ class _SignInScreenState extends State<SignInScreen> {
                   width: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.0,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(Colors.blueAccent),
                   ),
                 )
               : Text("Sign In"),
-          style: ElevatedButton.styleFrom(
+          style: OutlinedButton.styleFrom(
             padding: EdgeInsets.symmetric(vertical: 15),
+            foregroundColor: Colors.blueAccent,
+            side: BorderSide(color: Colors.blueAccent),
           ),
         ),
         TextButton(
           onPressed: _switchToCreateAccount,
           child: Text("Don't have an account? Create one"),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.blueAccent,
+          ),
         ),
       ],
     );
@@ -265,6 +278,9 @@ class _SignInScreenState extends State<SignInScreen> {
           decoration: InputDecoration(
             labelText: 'First Name',
             border: OutlineInputBorder(),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.blueAccent),
+            ),
           ),
         ),
         SizedBox(height: 20),
@@ -273,6 +289,9 @@ class _SignInScreenState extends State<SignInScreen> {
           decoration: InputDecoration(
             labelText: 'Last Name',
             border: OutlineInputBorder(),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.blueAccent),
+            ),
           ),
         ),
         SizedBox(height: 20),
@@ -281,6 +300,9 @@ class _SignInScreenState extends State<SignInScreen> {
           decoration: InputDecoration(
             labelText: 'Age',
             border: OutlineInputBorder(),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.blueAccent),
+            ),
           ),
           keyboardType: TextInputType.number,
         ),
@@ -290,6 +312,9 @@ class _SignInScreenState extends State<SignInScreen> {
           decoration: InputDecoration(
             labelText: 'Email',
             border: OutlineInputBorder(),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.blueAccent),
+            ),
           ),
           keyboardType: TextInputType.emailAddress,
         ),
@@ -299,6 +324,9 @@ class _SignInScreenState extends State<SignInScreen> {
           decoration: InputDecoration(
             labelText: 'Username',
             border: OutlineInputBorder(),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.blueAccent),
+            ),
           ),
         ),
         SizedBox(height: 20),
@@ -307,11 +335,14 @@ class _SignInScreenState extends State<SignInScreen> {
           decoration: InputDecoration(
             labelText: 'Password',
             border: OutlineInputBorder(),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.blueAccent),
+            ),
           ),
           obscureText: true,
         ),
         SizedBox(height: 20),
-        ElevatedButton(
+        OutlinedButton(
           onPressed: _isCreatingAccount ? null : _createAccount,
           child: _isCreatingAccount
               ? SizedBox(
@@ -319,17 +350,23 @@ class _SignInScreenState extends State<SignInScreen> {
                   width: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.0,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(Colors.blueAccent),
                   ),
                 )
               : Text("Create Account"),
-          style: ElevatedButton.styleFrom(
+          style: OutlinedButton.styleFrom(
             padding: EdgeInsets.symmetric(vertical: 15),
+            foregroundColor: Colors.blueAccent,
+            side: BorderSide(color: Colors.blueAccent),
           ),
         ),
         TextButton(
           onPressed: _switchToSignIn,
           child: Text("Already have an account? Sign In"),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.blueAccent,
+          ),
         ),
       ],
     );

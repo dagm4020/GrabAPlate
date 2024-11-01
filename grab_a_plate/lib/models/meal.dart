@@ -17,7 +17,7 @@ class Meal {
     required this.youtubeLink,
   });
 
-    factory Meal.fromJson(Map<String, dynamic> json) {
+  factory Meal.fromJson(Map<String, dynamic> json) {
     List<String> ingredients = [];
     for (int i = 1; i <= 20; i++) {
       String? ingredient = json['strIngredient$i'];
@@ -43,10 +43,10 @@ class Meal {
     );
   }
 
-    factory Meal.fromMap(Map<String, dynamic> map) {
+  factory Meal.fromMap(Map<String, dynamic> map) {
     List<String> ingredients = [];
     if (map['ingredients'] != null) {
-            ingredients = map['ingredients']
+      ingredients = map['ingredients']
           .split(',')
           .map((ingredient) => ingredient.trim())
           .toList();
@@ -63,13 +63,14 @@ class Meal {
     );
   }
 
-    Map<String, dynamic> toMap() {
+  Map<String, dynamic> toMap() {
     return {
       'id': id,
       'name': name,
       'category': category,
       'thumbnail': thumbnail,
-      'ingredients': ingredients.join(', '),       'instructions': instructions,
+      'ingredients': ingredients.join(', '),
+      'instructions': instructions,
       'youtubeLink': youtubeLink,
     };
   }

@@ -123,7 +123,8 @@ class _FavoritesState extends State<Favorites> {
                       SizedBox(width: 8),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,                           foregroundColor: Colors.white, 
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
                         ),
                         onPressed: () {
                           Navigator.of(context).pop();
@@ -220,7 +221,10 @@ class _FavoritesState extends State<Favorites> {
                     if (meal != null) {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) => MealDetailScreen(meal: meal),
+                          builder: (context) => MealDetailScreen(
+                            meal: meal,
+                            currentUserId: widget.currentUserId,
+                          ),
                         ),
                       );
                     } else {
@@ -294,11 +298,12 @@ class _FavoritesState extends State<Favorites> {
     );
   }
 
-    AppBar _buildAppBar() {
+  AppBar _buildAppBar() {
     return AppBar(
       backgroundColor: Colors.white,
       iconTheme: IconThemeData(color: Colors.black),
-      elevation: 0,       title: Row(
+      elevation: 0,
+      title: Row(
         children: [
           Icon(Icons.favorite, color: Colors.black),
           SizedBox(width: 8),

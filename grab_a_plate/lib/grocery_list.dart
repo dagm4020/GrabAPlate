@@ -5,7 +5,8 @@ import 'dart:async';
 enum MeasurementType { Volume, Weight, Count }
 
 class FoodItem {
-  int? id;   final String name;
+  int? id;
+  final String name;
   final MeasurementType measurementType;
   final String? unitAbbreviation;
   final double? quantity;
@@ -22,7 +23,7 @@ class FoodItem {
     this.deletionTimer,
   });
 
-    Map<String, dynamic> toMap(int categoryId) {
+  Map<String, dynamic> toMap(int categoryId) {
     return {
       'id': id,
       'name': name,
@@ -34,7 +35,7 @@ class FoodItem {
     };
   }
 
-    factory FoodItem.fromMap(Map<String, dynamic> map) {
+  factory FoodItem.fromMap(Map<String, dynamic> map) {
     return FoodItem(
       id: map['id'],
       name: map['name'],
@@ -48,7 +49,8 @@ class FoodItem {
 }
 
 class Category {
-  int? id;   final String name;
+  int? id;
+  final String name;
   final List<FoodItem> items;
 
   Category({
@@ -57,14 +59,14 @@ class Category {
     List<FoodItem>? items,
   }) : items = items ?? [];
 
-    Map<String, dynamic> toMap() {
+  Map<String, dynamic> toMap() {
     return {
       'id': id,
       'name': name,
     };
   }
 
-    factory Category.fromMap(Map<String, dynamic> map) {
+  factory Category.fromMap(Map<String, dynamic> map) {
     return Category(
       id: map['id'],
       name: map['name'],
@@ -80,13 +82,13 @@ class GroceryList extends StatefulWidget {
 class _GroceryListState extends State<GroceryList> {
   bool _darkModeEnabled = false;
 
-    final GlobalKey _plusButtonKey = GlobalKey();
+  final GlobalKey _plusButtonKey = GlobalKey();
 
-    OverlayEntry? _overlayEntry;
+  OverlayEntry? _overlayEntry;
 
-    List<Category> _categories = [];
+  List<Category> _categories = [];
 
-    final DatabaseHelper _dbHelper = DatabaseHelper();
+  final DatabaseHelper _dbHelper = DatabaseHelper();
 
   @override
   void initState() {
@@ -95,22 +97,21 @@ class _GroceryListState extends State<GroceryList> {
     _loadCategoriesAndItems();
   }
 
-    Future<void> _loadDarkModePreference() async {
+  Future<void> _loadDarkModePreference() async {
     final settings = await _dbHelper.getSettings();
     setState(() {
       _darkModeEnabled = settings['darkMode'] ?? false;
     });
   }
 
-    Future<void> _loadCategoriesAndItems() async {
+  Future<void> _loadCategoriesAndItems() async {
     final categoriesData = await _dbHelper.queryAllCategories();
     List<Category> categories = [];
 
     for (var categoryMap in categoriesData) {
       Category category = Category.fromMap(categoryMap);
 
-            final itemsData =
-          await _dbHelper.queryFoodItemsByCategory(category.id!);
+      final itemsData = await _dbHelper.queryFoodItemsByCategory(category.id!);
       category.items
           .addAll(itemsData.map((itemMap) => FoodItem.fromMap(itemMap)));
 
@@ -128,8 +129,8 @@ class _GroceryListState extends State<GroceryList> {
     super.dispose();
   }
 
-    void _showDropdown() {
-        if (_overlayEntry != null) return;
+  void _showDropdown() {
+    if (_overlayEntry != null) return;
 
     final RenderBox renderBox =
         _plusButtonKey.currentContext!.findRenderObject() as RenderBox;
@@ -146,13 +147,16 @@ class _GroceryListState extends State<GroceryList> {
           children: [
             Positioned(
               top: buttonPosition.dy + buttonSize.height + 5.0,
-                            right: MediaQuery.of(context).size.width -
+              right: MediaQuery.of(context).size.width -
                   (buttonPosition.dx + buttonSize.width),
               child: Material(
                 color: Colors.transparent,
                 child: Container(
-                  width: 200.0,                   decoration: BoxDecoration(
-                    color: Colors.white,                     borderRadius: BorderRadius.circular(10.0),                     boxShadow: [
+                  width: 200.0,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10.0),
+                    boxShadow: [
                       BoxShadow(
                         color: Colors.black26,
                         blurRadius: 10.0,
@@ -162,7 +166,8 @@ class _GroceryListState extends State<GroceryList> {
                   ),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      maxHeight: 300.0,                     ),
+                      maxHeight: 300.0,
+                    ),
                     child: SingleChildScrollView(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -193,12 +198,12 @@ class _GroceryListState extends State<GroceryList> {
     Overlay.of(context)!.insert(_overlayEntry!);
   }
 
-    void _removeOverlay() {
+  void _removeOverlay() {
     _overlayEntry?.remove();
     _overlayEntry = null;
   }
 
-    Widget _buildDropdownButton(String title) {
+  Widget _buildDropdownButton(String title) {
     return InkWell(
       onTap: () {
         _handleDropdownSelection(title);
@@ -210,14 +215,15 @@ class _GroceryListState extends State<GroceryList> {
         child: Text(
           title,
           style: TextStyle(
-            color: Colors.black,             fontSize: 16.0,
+            color: Colors.black,
+            fontSize: 16.0,
           ),
         ),
       ),
     );
   }
 
-    void _handleDropdownSelection(String selection) {
+  void _handleDropdownSelection(String selection) {
     if (selection == 'Custom') {
       _showCustomCategoryDialog();
     } else {
@@ -225,7 +231,7 @@ class _GroceryListState extends State<GroceryList> {
     }
   }
 
-    void _showCustomCategoryDialog() {
+  void _showCustomCategoryDialog() {
     final TextEditingController _customCategoryController =
         TextEditingController();
 
@@ -233,8 +239,8 @@ class _GroceryListState extends State<GroceryList> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor:
-              Colors.white,           title: Text('Enter Custom Category'),
+          backgroundColor: Colors.white,
+          title: Text('Enter Custom Category'),
           content: TextField(
             controller: _customCategoryController,
             decoration: InputDecoration(
@@ -251,12 +257,11 @@ class _GroceryListState extends State<GroceryList> {
             TextButton(
               child: Text('Save'),
               onPressed: () {
-                String customCategory =
-                    _customCategoryController.text.trim();
+                String customCategory = _customCategoryController.text.trim();
                 if (customCategory.isNotEmpty) {
                   _addCategory(customCategory);
-                  Navigator.of(context).pop(); 
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content:
                           Text('$customCategory added as a custom category'),
@@ -264,7 +269,7 @@ class _GroceryListState extends State<GroceryList> {
                     ),
                   );
                 } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Please enter a category name'),
                       duration: Duration(seconds: 2),
@@ -279,9 +284,9 @@ class _GroceryListState extends State<GroceryList> {
     );
   }
 
-    void _addCategory(String categoryName) async {
-        if (_categories.any((category) => category.name == categoryName)) {
-            ScaffoldMessenger.of(context).showSnackBar(
+  void _addCategory(String categoryName) async {
+    if (_categories.any((category) => category.name == categoryName)) {
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('$categoryName already exists.'),
           duration: Duration(seconds: 2),
@@ -290,18 +295,18 @@ class _GroceryListState extends State<GroceryList> {
       return;
     }
 
-        int categoryId = await _dbHelper.insertCategory({'name': categoryName});
+    int categoryId = await _dbHelper.insertCategory({'name': categoryName});
 
     setState(() {
       _categories.add(Category(id: categoryId, name: categoryName));
     });
   }
 
-    void _onAddButtonPressed() {
+  void _onAddButtonPressed() {
     _showDropdown();
   }
 
-    void _showAddFoodItemDialog(Category category) {
+  void _showAddFoodItemDialog(Category category) {
     final TextEditingController _foodNameController = TextEditingController();
     final TextEditingController _quantityController = TextEditingController();
     MeasurementType? _selectedMeasurementType;
@@ -312,10 +317,11 @@ class _GroceryListState extends State<GroceryList> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.white,           title: Text('Add Food Item'),
+          backgroundColor: Colors.white,
+          title: Text('Add Food Item'),
           content: StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) {
-                            List<String> volumeOptions = [
+              List<String> volumeOptions = [
                 'Tablespoon (tbsp)',
                 'Cup (c)',
                 'Pint (pt)',
@@ -323,7 +329,7 @@ class _GroceryListState extends State<GroceryList> {
                 'Gallon (gal)'
               ];
               List<String> weightOptions = ['Ounce (oz)', 'Pound (lb)'];
-              
+
               List<String> currentOptions = [];
 
               if (_selectedMeasurementType == MeasurementType.Volume) {
@@ -356,8 +362,10 @@ class _GroceryListState extends State<GroceryList> {
                       decoration: InputDecoration(
                         labelText: 'Measurement Type',
                         filled: true,
-                        fillColor: Colors.white,                       ),
-                      dropdownColor: Colors.white,                       value: _selectedMeasurementType,
+                        fillColor: Colors.white,
+                      ),
+                      dropdownColor: Colors.white,
+                      value: _selectedMeasurementType,
                       items: MeasurementType.values.map((MeasurementType type) {
                         return DropdownMenuItem<MeasurementType>(
                           value: type,
@@ -367,7 +375,8 @@ class _GroceryListState extends State<GroceryList> {
                       onChanged: (MeasurementType? newValue) {
                         setState(() {
                           _selectedMeasurementType = newValue;
-                          _selectedUnit = null;                           _measurementAbbreviation = null;
+                          _selectedUnit = null;
+                          _measurementAbbreviation = null;
                         });
                       },
                     ),
@@ -380,8 +389,10 @@ class _GroceryListState extends State<GroceryList> {
                             decoration: InputDecoration(
                               labelText: 'Select Unit',
                               filled: true,
-                              fillColor: Colors.white,                             ),
-                            dropdownColor: Colors.white,                             value: _selectedUnit,
+                              fillColor: Colors.white,
+                            ),
+                            dropdownColor: Colors.white,
+                            value: _selectedUnit,
                             items: currentOptions.map((String unit) {
                               String abbreviation = unit.contains('(')
                                   ? unit
@@ -398,7 +409,7 @@ class _GroceryListState extends State<GroceryList> {
                             onChanged: (String? newValue) {
                               setState(() {
                                 _selectedUnit = newValue;
-                                                                _measurementAbbreviation = newValue;
+                                _measurementAbbreviation = newValue;
                               });
                             },
                           ),
@@ -437,7 +448,7 @@ class _GroceryListState extends State<GroceryList> {
                     quantity != null) {
                   if (_selectedMeasurementType != MeasurementType.Count &&
                       _measurementAbbreviation == null) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                    ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Please select a unit'),
                         duration: Duration(seconds: 2),
@@ -449,15 +460,15 @@ class _GroceryListState extends State<GroceryList> {
                     _measurementAbbreviation = 'pcs';
                   }
 
-                                    FoodItem newItem = FoodItem(
+                  FoodItem newItem = FoodItem(
                     name: foodName,
                     measurementType: _selectedMeasurementType!,
                     unitAbbreviation: _measurementAbbreviation,
                     quantity: quantity,
                   );
 
-                                    int itemId = await _dbHelper.insertFoodItem(
-                      newItem.toMap(category.id!));
+                  int itemId = await _dbHelper
+                      .insertFoodItem(newItem.toMap(category.id!));
 
                   newItem.id = itemId;
 
@@ -473,7 +484,7 @@ class _GroceryListState extends State<GroceryList> {
                     ),
                   );
                 } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
                           'Please enter food name, quantity, and measurement type'),
@@ -489,7 +500,7 @@ class _GroceryListState extends State<GroceryList> {
     );
   }
 
-    void _deleteCategory(Category category) async {
+  void _deleteCategory(Category category) async {
     await _dbHelper.deleteCategory(category.id!);
 
     setState(() {
@@ -500,23 +511,22 @@ class _GroceryListState extends State<GroceryList> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: _darkModeEnabled
-          ? Colors.black
-          : Colors.white,       child: Column(
+      color: _darkModeEnabled ? Colors.black : Colors.white,
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-                    Padding(
+          Padding(
             padding:
                 const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
             child: Row(
               children: [
-                                Icon(
+                Icon(
                   Icons.shopping_cart,
                   color: _darkModeEnabled ? Colors.white : Colors.black,
                   size: 24.0,
                 ),
-                SizedBox(width: 8.0), 
-                                Text(
+                SizedBox(width: 8.0),
+                Text(
                   'Shopping List',
                   style: TextStyle(
                     fontSize: 24,
@@ -524,39 +534,50 @@ class _GroceryListState extends State<GroceryList> {
                     color: _darkModeEnabled ? Colors.white : Colors.black,
                   ),
                 ),
-                Spacer(), 
-                                GestureDetector(
-                  key: _plusButtonKey,                   onTap: _onAddButtonPressed,
+                Spacer(),
+                GestureDetector(
+                  key: _plusButtonKey,
+                  onTap: _onAddButtonPressed,
                   child: Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.black, width: 2.0),
                       color: Colors.white,
                     ),
-                    padding:
-                        EdgeInsets.all(6.0),                     child: Icon(
+                    padding: EdgeInsets.all(6.0),
+                    child: Icon(
                       Icons.add,
                       color: Colors.black,
-                      size: 16.0,                       semanticLabel: 'Add new item',                     ),
+                      size: 16.0,
+                      semanticLabel: 'Add new item',
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-
-                    Divider(
+          Divider(
             thickness: 1.0,
             color: _darkModeEnabled ? Colors.white54 : Colors.grey,
-            indent: 0,             endIndent: 0,           ),
-
-                    Expanded(
+            indent: 0,
+            endIndent: 0,
+          ),
+          Expanded(
             child: Container(
-              margin: EdgeInsets.all(20.0),               decoration: BoxDecoration(
-                color: Colors.white,                 borderRadius: BorderRadius.circular(20.0),                 border: Border.all(
-                  color: Colors.black,                   width: 1.0,                 ),
+              margin: EdgeInsets.all(20.0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20.0),
+                border: Border.all(
+                  color: Colors.black,
+                  width: 1.0,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black26,                     blurRadius: 10.0,                     offset: Offset(0, 4),                   ),
+                    color: Colors.black26,
+                    blurRadius: 10.0,
+                    offset: Offset(0, 4),
+                  ),
                 ],
               ),
               child: _categories.isEmpty
@@ -567,7 +588,8 @@ class _GroceryListState extends State<GroceryList> {
                           fontSize: 16.5,
                           color: _darkModeEnabled
                               ? Colors.black87
-                              : Colors.black87,                         ),
+                              : Colors.black87,
+                        ),
                       ),
                     )
                   : ListView.builder(
@@ -618,7 +640,7 @@ class _CategoryRowState extends State<CategoryRow>
   late Animation<Offset> _offsetAnimation;
   late Animation<double> _opacityAnimation;
 
-    final DatabaseHelper _dbHelper = DatabaseHelper();
+  final DatabaseHelper _dbHelper = DatabaseHelper();
 
   @override
   void initState() {
@@ -686,7 +708,7 @@ class _CategoryRowState extends State<CategoryRow>
     );
   }
 
-    void _deleteFoodItem(FoodItem item, int index) async {
+  void _deleteFoodItem(FoodItem item, int index) async {
     await _dbHelper.deleteFoodItem(item.id!);
 
     setState(() {
@@ -694,7 +716,7 @@ class _CategoryRowState extends State<CategoryRow>
     });
   }
 
-    void _updateFoodItem(FoodItem item) async {
+  void _updateFoodItem(FoodItem item) async {
     await _dbHelper.updateFoodItem(item.id!, {
       'isChecked': item.isChecked ? 1 : 0,
     });
@@ -710,21 +732,23 @@ class _CategoryRowState extends State<CategoryRow>
   Widget build(BuildContext context) {
     return Column(
       children: [
-                Container(
+        Container(
           margin: EdgeInsets.symmetric(vertical: 8.0),
           padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
           decoration: BoxDecoration(
-            color: Colors.white,             borderRadius:
-                BorderRadius.circular(10.0),             boxShadow: [
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10.0),
+            boxShadow: [
               BoxShadow(
-                color: Colors.black12,                 blurRadius: 5.0,
+                color: Colors.black12,
+                blurRadius: 5.0,
                 offset: Offset(0, 2),
               ),
             ],
           ),
           child: Row(
             children: [
-                            Expanded(
+              Expanded(
                 child: Text(
                   widget.category.name,
                   style: TextStyle(
@@ -733,16 +757,17 @@ class _CategoryRowState extends State<CategoryRow>
                   ),
                 ),
               ),
-                            Container(
-                width: 96,                 child: Stack(
+              Container(
+                width: 96,
+                child: Stack(
                   alignment: Alignment.centerRight,
                   children: [
-                                        SlideTransition(
+                    SlideTransition(
                       position: _offsetAnimation,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                                                    IconButton(
+                          IconButton(
                             icon: Icon(
                               Icons.add,
                               color: Colors.black,
@@ -752,7 +777,7 @@ class _CategoryRowState extends State<CategoryRow>
                             ),
                             onPressed: widget.onAddPressed,
                           ),
-                                                    IconButton(
+                          IconButton(
                             icon: AnimatedSwitcher(
                               duration: Duration(milliseconds: 300),
                               transitionBuilder:
@@ -774,7 +799,8 @@ class _CategoryRowState extends State<CategoryRow>
                                     ? 'arrow_forward'
                                     : 'arrow_back'),
                                 color: Colors.black,
-                                size: 16.0,                                 semanticLabel: _isDeleteMode
+                                size: 16.0,
+                                semanticLabel: _isDeleteMode
                                     ? 'Exit delete mode'
                                     : 'Enter delete mode',
                               ),
@@ -784,7 +810,7 @@ class _CategoryRowState extends State<CategoryRow>
                         ],
                       ),
                     ),
-                                        IgnorePointer(
+                    IgnorePointer(
                       ignoring: !_isDeleteMode,
                       child: FadeTransition(
                         opacity: _opacityAnimation,
@@ -809,9 +835,10 @@ class _CategoryRowState extends State<CategoryRow>
             ],
           ),
         ),
-                Container(
+        Container(
           decoration: BoxDecoration(
-            color: Colors.grey[200],             borderRadius: BorderRadius.only(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.only(
               bottomLeft: Radius.circular(10.0),
               bottomRight: Radius.circular(10.0),
             ),
@@ -823,7 +850,8 @@ class _CategoryRowState extends State<CategoryRow>
               return FoodItemRow(
                 foodItem: foodItem,
                 onItemChanged: () {
-                  setState(() {});                   _updateFoodItem(foodItem);
+                  setState(() {});
+                  _updateFoodItem(foodItem);
                 },
                 onDelete: () {
                   _deleteFoodItem(foodItem, index);
@@ -840,7 +868,7 @@ class _CategoryRowState extends State<CategoryRow>
 class FoodItemRow extends StatefulWidget {
   final FoodItem foodItem;
   final VoidCallback onItemChanged;
-  final VoidCallback onDelete; 
+  final VoidCallback onDelete;
   FoodItemRow({
     required this.foodItem,
     required this.onItemChanged,
@@ -856,21 +884,23 @@ class _FoodItemRowState extends State<FoodItemRow> {
 
   @override
   void dispose() {
-    _timer?.cancel();     super.dispose();
+    _timer?.cancel();
+    super.dispose();
   }
 
   void _handleCheckboxChange(bool? newValue) {
     setState(() {
       widget.foodItem.isChecked = newValue ?? false;
 
-      widget.onItemChanged(); 
+      widget.onItemChanged();
       if (widget.foodItem.isChecked) {
-                _timer = Timer(Duration(seconds: 5), () {
-                    if (widget.foodItem.isChecked) {
-            widget.onDelete();           }
+        _timer = Timer(Duration(seconds: 5), () {
+          if (widget.foodItem.isChecked) {
+            widget.onDelete();
+          }
         });
       } else {
-                _timer?.cancel();
+        _timer?.cancel();
       }
     });
   }

@@ -159,8 +159,10 @@ class _SuggestedMealsScreenState extends State<SuggestedMealsScreen> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (context) =>
-                                      MealDetailScreen(meal: currentMeal),
+                                  builder: (context) => MealDetailScreen(
+                                    meal: currentMeal,
+                                    currentUserId: widget.currentUserId,
+                                  ),
                                 ),
                               );
                             },
@@ -196,7 +198,9 @@ class _SuggestedMealsScreenState extends State<SuggestedMealsScreen> {
                             ),
                           ),
                           Positioned(
-                            top: 4,                             right: 4,                             child: IconButton(
+                            top: 4,
+                            right: 4,
+                            child: IconButton(
                               padding: EdgeInsets.zero,
                               constraints: BoxConstraints(),
                               icon: Icon(
@@ -207,7 +211,7 @@ class _SuggestedMealsScreenState extends State<SuggestedMealsScreen> {
                               ),
                               onPressed: () async {
                                 if (widget.currentUserId == null) {
-                                                                    await Navigator.of(context).push(
+                                  await Navigator.of(context).push(
                                     MaterialPageRoute(
                                       builder: (context) => SignInScreen(
                                         onSignedIn: () {

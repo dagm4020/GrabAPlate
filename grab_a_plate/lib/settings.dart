@@ -29,20 +29,29 @@ class _SettingsState extends State<Settings> {
     _loadSettings();
   }
 
-Future<void> _loadSettings() async {
-  final settings = await DatabaseHelper().getSettings();
-  bool isLoggedIn = settings['isLoggedIn'] ?? false;
+  Future<void> _loadSettings() async {
+    final settings = await DatabaseHelper().getSettings();
+    bool isLoggedIn = settings['isLoggedIn'] ?? false;
 
-  if (isLoggedIn) {
-    int? userId = settings['currentUserId'];
-    if (userId != null) {
-      final user = await DatabaseHelper().getUserById(userId);
-      if (user != null) {
-        setState(() {
-          _isLoggedIn = true;
-        });
+    if (isLoggedIn) {
+      int? userId = settings['currentUserId'];
+      if (userId != null) {
+        final user = await DatabaseHelper().getUserById(userId);
+        if (user != null) {
+          setState(() {
+            _isLoggedIn = true;
+          });
+        } else {
+          await DatabaseHelper().updateSettings(
+            isLoggedIn: false,
+            currentUserId: null,
+          );
+          setState(() {
+            _isLoggedIn = false;
+          });
+        }
       } else {
-                await DatabaseHelper().updateSettings(
+        await DatabaseHelper().updateSettings(
           isLoggedIn: false,
           currentUserId: null,
         );
@@ -51,25 +60,16 @@ Future<void> _loadSettings() async {
         });
       }
     } else {
-            await DatabaseHelper().updateSettings(
-        isLoggedIn: false,
-        currentUserId: null,
-      );
       setState(() {
         _isLoggedIn = false;
       });
     }
-  } else {
+
     setState(() {
-      _isLoggedIn = false;
+      _darkModeEnabled = settings['darkMode'] ?? false;
+      _animationsOff = settings['animationsOff'] ?? false;
     });
   }
-
-  setState(() {
-    _darkModeEnabled = settings['darkMode'] ?? false;
-    _animationsOff = settings['animationsOff'] ?? false;
-  });
-}
 
   Future<void> _saveSettings() async {
     await DatabaseHelper().updateSettings(
@@ -112,45 +112,7 @@ Future<void> _loadSettings() async {
     );
   }
 
-void _signOut() async {
-  await DatabaseHelper().updateSettings(
-    isLoggedIn: false,
-    currentUserId: null,
-  );
-  setState(() {
-    _isLoggedIn = false;
-  });
-  widget.onLoginStatusChanged(false);
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text('You have been signed out.'),
-      duration: Duration(seconds: 2),
-    ),
-  );
-  Navigator.of(context).pop(); }
-
-void _resetUserDatabase() async {
-  bool confirm = await showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text('Reset User Database'),
-      content: Text(
-          'Are you sure you want to delete all user data? This action cannot be undone.'),
-      actions: [
-        TextButton(
-          child: Text('Cancel'),
-          onPressed: () => Navigator.of(context).pop(false),
-        ),
-        TextButton(
-          child: Text('Delete', style: TextStyle(color: Colors.red)),
-          onPressed: () => Navigator.of(context).pop(true),
-        ),
-      ],
-    ),
-  );
-
-  if (confirm == true) {
-    await DatabaseHelper().deleteAllUsers();
+  void _signOut() async {
     await DatabaseHelper().updateSettings(
       isLoggedIn: false,
       currentUserId: null,
@@ -161,14 +123,52 @@ void _resetUserDatabase() async {
     widget.onLoginStatusChanged(false);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('All user data has been deleted.'),
+        content: Text('You have been signed out.'),
         duration: Duration(seconds: 2),
       ),
     );
     Navigator.of(context).pop();
   }
-}
 
+  void _resetUserDatabase() async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Reset User Database'),
+        content: Text(
+            'Are you sure you want to delete all user data? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            child: Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          TextButton(
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await DatabaseHelper().deleteAllUsers();
+      await DatabaseHelper().updateSettings(
+        isLoggedIn: false,
+        currentUserId: null,
+      );
+      setState(() {
+        _isLoggedIn = false;
+      });
+      widget.onLoginStatusChanged(false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('All user data has been deleted.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      Navigator.of(context).pop();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -176,11 +176,12 @@ void _resetUserDatabase() async {
       appBar: AppBar(
         title: Text(
           "Settings",
-          style: TextStyle(color: _darkModeEnabled ? Colors.white : Colors.black),
+          style:
+              TextStyle(color: _darkModeEnabled ? Colors.white : Colors.black),
         ),
         backgroundColor: _darkModeEnabled ? Colors.black : Colors.white,
-        iconTheme:
-            IconThemeData(color: _darkModeEnabled ? Colors.white : Colors.black),
+        iconTheme: IconThemeData(
+            color: _darkModeEnabled ? Colors.white : Colors.black),
       ),
       body: Container(
         color: _darkModeEnabled ? Colors.black : Colors.white,
@@ -298,41 +299,55 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textColor = _darkModeEnabled ? Colors.white : Colors.black;
+    final backgroundColor = _darkModeEnabled ? Colors.black : Colors.white;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           "Preferences",
-          style: TextStyle(color: _darkModeEnabled ? Colors.white : Colors.black),
+          style: TextStyle(color: textColor),
         ),
-        backgroundColor: _darkModeEnabled ? Colors.black : Colors.white,
-        iconTheme:
-            IconThemeData(color: _darkModeEnabled ? Colors.white : Colors.black),
+        backgroundColor: backgroundColor,
+        iconTheme: IconThemeData(color: textColor),
       ),
       body: Container(
-        color: _darkModeEnabled ? Colors.black : Colors.white,
+        color: backgroundColor,
         child: Column(
           children: [
             ListTile(
-              title: Text('Dark Mode',
-                  style: TextStyle(
-                      color: _darkModeEnabled ? Colors.white : Colors.black)),
+              title: Text(
+                'Dark Mode',
+                style: TextStyle(color: textColor),
+              ),
               trailing: Switch(
                 value: _darkModeEnabled,
                 onChanged: _toggleDarkMode,
+                activeColor: Colors.blueAccent,
+                inactiveThumbColor: Colors.grey,
+                inactiveTrackColor: Colors.grey[300],
               ),
             ),
             ListTile(
-              title: Text('Turn Off Animations',
-                  style: TextStyle(
-                      color: _darkModeEnabled ? Colors.white : Colors.black)),
+              title: Text(
+                'Turn Off Animations',
+                style: TextStyle(color: textColor),
+              ),
               trailing: Switch(
                 value: _animationsOff,
                 onChanged: _toggleAnimations,
+                activeColor: Colors.blueAccent,
+                inactiveThumbColor: Colors.grey,
+                inactiveTrackColor: Colors.grey[300],
               ),
             ),
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: _savePreferences,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF007AFF),
+                foregroundColor: Colors.white,
+              ),
               child: Text("Save Preferences"),
             ),
           ],
